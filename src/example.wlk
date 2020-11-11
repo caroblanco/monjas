@@ -4,12 +4,7 @@ class Jugador{
 	var nivelSospecha = 40
 	const tareas = []
 	const completadas = []
-	var votos = 0
 	var impugnado = false
-	
-	method sumarVoto(){
-		votos++
-	}
 	
 	method nivelSospecha() = nivelSospecha
 	
@@ -48,25 +43,24 @@ class Jugador{
 	method votar(jugadores){
 		if(impugnado){
 			nave.agregarVoto("enBlanco")
+			impugnado = false
+		}else{
+			const voto = self.criterioTipo(jugadores)
+			nave.agregarVoto(voto)
 		}
 	}
+	
+	method criterioTipo(jugadores)
 }
 
 class Tripulante inherits Jugador{
 	var personalidad
-	override method votar(jugadores){
-		super(jugadores)
-		const voto = personalidad.votacion(jugadores)
-		nave.agregarVoto(voto)
-	} 
+	override method criterioTipo(jugadores) =  personalidad.votacion(jugadores)
 	
 	method realizarTarea(tarea){
-		if(self.puedeRealizarTarea(tarea)){
-			self.realizar(tarea)
-			self.informarNave()
-		}else{
-			self.error("NO SE PUEDE REALIZAR")
-		}
+		self.puedeRealizarTarea(tarea)
+		self.realizar(tarea)
+		self.informarNave()
 	}
 	
 	method realizar(tarea){
@@ -79,7 +73,11 @@ class Tripulante inherits Jugador{
 		nave.chequearTareas()
 	}
 	
-	method puedeRealizarTarea(tarea) = tareas.contains(tarea) && tarea.cumpleRestricciones(self)
+	method puedeRealizarTarea(tarea){
+		if(not tareas.contains(tarea) || not tarea.cumpleRestricciones(self)){
+			self.error("NO SE PUEDE REALIZAR")
+		}
+	}
 	
 	method todasTareasCompletadas() = tareas.isEmpty()
 	
@@ -93,11 +91,8 @@ class Impostor inherits Jugador{
 		sabotaje.realizarSabotaje(self)
 	}
 	
-	override method votar(jugadores){
-		super(jugadores)
-		const voto = jugadores.anyOne()
-		nave.agregarVoto(voto)
-	}
+	override method criterioTipo(jugadores) = jugadores.anyOne()
+
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -140,8 +135,9 @@ object nave{
 	}
 	
 	method contarVotos(){
-		if(self.masVotado() != "enBlanco"){
-			self.expulsarJugadorMasVotado()
+		const masVot = self.masVotado()
+		if( masVot != "enBlanco"){
+			self.expulsarJugadorMasVotado(masVot)
 		}
 	}
 	
@@ -151,8 +147,8 @@ object nave{
 	
 	method masVotado() = votos.max({unV => votos.occurrencesOf(unV)})
 	
-	method expulsarJugadorMasVotado(){
-		self.expulsarJugador(self.masVotado())
+	method expulsarJugadorMasVotado(masVot){
+		self.expulsarJugador(masVot)
 		
 	}
 	
@@ -222,7 +218,6 @@ class Sabotaje{
 
 object reducirOxigeno inherits Sabotaje{
 	override method consecuenciaParticular(){
-		super()
 		if(not nave.algunoTiene("tubo de oxigeno")){
 			nave.bajarOxigeno(10)
 		}
@@ -233,7 +228,6 @@ class ImpugnarAJugador inherits Sabotaje{
 	const jugador
 	
 	override method consecuenciaParticular(){
-		super()
 		self.obligarVotoBlanco()
 	}
 	
@@ -246,7 +240,6 @@ class ImpugnarAJugador inherits Sabotaje{
 
 class Personalidad{
 	method votacion(jugadores) = jugadores.findOrDefault(self.cumpleCondicion(jugadores).anyOne(),"enBlanco")
-
 	
 	method cumpleCondicion(jugadores)
 }
